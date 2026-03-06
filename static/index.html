@@ -253,7 +253,8 @@
         }
 
         // WebSocket la backend
-        const wsUrl = `ws://${window.location.host}/ws`;
+        const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+        const wsUrl = `${wsProtocol}//${window.location.host}/ws`;
         ws = new WebSocket(wsUrl);
 
         ws.onopen = () => {
