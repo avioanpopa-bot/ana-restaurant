@@ -126,7 +126,7 @@ async def websocket_bridge(client_ws: WebSocket):
                 "session": {
                     "modalities": ["text", "audio"],
                     "instructions": ANA_SYSTEM_PROMPT,
-                    "voice": "nova",  # voce feminină naturală
+                    "voice": "coral",  # voce feminină naturală
                     "input_audio_format": "pcm16",
                     "output_audio_format": "pcm16",
                     "input_audio_transcription": {
