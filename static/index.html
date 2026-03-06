@@ -1,0 +1,435 @@
+<!DOCTYPE html>
+<html lang="ro">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ana - Asistent Vocal Restaurant</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            background: #1a1a2e;
+            color: #eee;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 20px;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        .header h1 { font-size: 1.8em; color: #e8b86d; }
+        .header p { color: #aaa; font-size: 0.9em; margin-top: 5px; }
+
+        .status-bar {
+            background: #16213e;
+            border: 1px solid #0f3460;
+            border-radius: 12px;
+            padding: 12px 20px;
+            margin-bottom: 20px;
+            width: 100%;
+            max-width: 500px;
+            text-align: center;
+            font-size: 0.9em;
+        }
+        .status-bar.ok { border-color: #2d6a4f; color: #52b788; }
+        .status-bar.error { border-color: #9d0208; color: #e85d04; }
+        .status-bar.connecting { border-color: #e8b86d; color: #e8b86d; }
+
+        .call-button {
+            width: 160px;
+            height: 160px;
+            border-radius: 50%;
+            border: none;
+            cursor: pointer;
+            font-size: 3em;
+            transition: all 0.3s;
+            margin: 20px 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 0 30px rgba(0,0,0,0.5);
+        }
+        .call-button.start {
+            background: radial-gradient(circle, #2d6a4f, #1b4332);
+            box-shadow: 0 0 40px rgba(45, 106, 79, 0.5);
+        }
+        .call-button.start:hover {
+            transform: scale(1.05);
+            box-shadow: 0 0 60px rgba(45, 106, 79, 0.8);
+        }
+        .call-button.stop {
+            background: radial-gradient(circle, #9d0208, #6a040f);
+            box-shadow: 0 0 40px rgba(157, 2, 8, 0.5);
+            animation: pulse-red 1.5s infinite;
+        }
+        .call-button:disabled {
+            background: #333;
+            cursor: not-allowed;
+            box-shadow: none;
+        }
+
+        @keyframes pulse-red {
+            0%, 100% { box-shadow: 0 0 40px rgba(157, 2, 8, 0.5); }
+            50% { box-shadow: 0 0 70px rgba(157, 2, 8, 0.9); }
+        }
+
+        .call-label {
+            font-size: 1em;
+            color: #aaa;
+            margin-top: 5px;
+        }
+
+        .volume-bar {
+            width: 100%;
+            max-width: 500px;
+            height: 8px;
+            background: #16213e;
+            border-radius: 4px;
+            overflow: hidden;
+            margin: 15px 0;
+            display: none;
+        }
+        .volume-bar.active { display: block; }
+        .volume-fill {
+            height: 100%;
+            background: linear-gradient(to right, #2d6a4f, #52b788);
+            width: 0%;
+            transition: width 0.1s;
+        }
+
+        .transcript-box {
+            width: 100%;
+            max-width: 500px;
+            background: #16213e;
+            border: 1px solid #0f3460;
+            border-radius: 12px;
+            padding: 15px;
+            margin-top: 20px;
+            min-height: 200px;
+            max-height: 400px;
+            overflow-y: auto;
+            font-size: 0.9em;
+            line-height: 1.6;
+        }
+        .transcript-box h3 {
+            color: #e8b86d;
+            margin-bottom: 10px;
+            font-size: 0.85em;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .msg { margin: 8px 0; padding: 8px 12px; border-radius: 8px; }
+        .msg.ana { background: #1b4332; color: #d8f3dc; text-align: left; }
+        .msg.client { background: #0f3460; color: #caf0f8; text-align: right; }
+        .msg.system { color: #aaa; font-style: italic; font-size: 0.85em; text-align: center; }
+        .msg.error { background: #370617; color: #f48c06; text-align: center; }
+
+        .msg .sender {
+            font-size: 0.75em;
+            opacity: 0.7;
+            margin-bottom: 3px;
+        }
+
+        .info-box {
+            width: 100%;
+            max-width: 500px;
+            background: #16213e;
+            border: 1px solid #e8b86d33;
+            border-radius: 12px;
+            padding: 15px;
+            margin-top: 15px;
+            font-size: 0.82em;
+            color: #aaa;
+            line-height: 1.8;
+        }
+        .info-box strong { color: #e8b86d; }
+    </style>
+</head>
+<body>
+
+    <div class="header">
+        <h1>🍽️ Ana</h1>
+        <p>Asistent Vocal · Restaurant La Bunica</p>
+    </div>
+
+    <div class="status-bar connecting" id="statusBar">
+        ⏳ Pregătire...
+    </div>
+
+    <button class="call-button start" id="callBtn" onclick="toggleCall()">📞</button>
+    <div class="call-label" id="callLabel">Apasă pentru a vorbi cu Ana</div>
+
+    <div class="volume-bar" id="volumeBar">
+        <div class="volume-fill" id="volumeFill"></div>
+    </div>
+
+    <div class="transcript-box" id="transcript">
+        <h3>📝 Conversație</h3>
+        <div id="messages">
+            <div class="msg system">Apasă butonul verde pentru a începe conversația cu Ana.</div>
+        </div>
+    </div>
+
+    <div class="info-box">
+        <strong>💡 Cum funcționează:</strong><br>
+        1. Apasă butonul verde 📞<br>
+        2. Permite accesul la microfon<br>
+        3. Vorbește cu Ana în română<br>
+        4. Ana îți va răspunde vocal<br><br>
+        <strong>🔊 Asigură-te că sunetul e pornit!</strong>
+    </div>
+
+<script>
+    let ws = null;
+    let audioCtx = null;
+    let micStream = null;
+    let micProcessor = null;
+    let isActive = false;
+    let anaTextBuffer = "";
+
+    const callBtn = document.getElementById('callBtn');
+    const callLabel = document.getElementById('callLabel');
+    const statusBar = document.getElementById('statusBar');
+    const volumeBar = document.getElementById('volumeBar');
+    const volumeFill = document.getElementById('volumeFill');
+    const messages = document.getElementById('messages');
+
+    function setStatus(text, type) {
+        statusBar.textContent = text;
+        statusBar.className = 'status-bar ' + type;
+    }
+
+    function addMessage(text, type) {
+        const div = document.createElement('div');
+        div.className = 'msg ' + type;
+
+        if (type === 'ana') {
+            div.innerHTML = `<div class="sender">🤖 Ana</div>${text}`;
+        } else if (type === 'client') {
+            div.innerHTML = `<div class="sender">👤 Tu</div>${text}`;
+        } else {
+            div.textContent = text;
+        }
+
+        messages.appendChild(div);
+        messages.parentElement.scrollTop = messages.parentElement.scrollHeight;
+        return div;
+    }
+
+    function toggleCall() {
+        if (!isActive) {
+            startCall();
+        } else {
+            stopCall();
+        }
+    }
+
+    async function startCall() {
+        setStatus("⏳ Conectare la Ana...", "connecting");
+        callBtn.disabled = true;
+
+        // Obținem accesul la microfon - fără sampleRate fix pentru compatibilitate Android
+        try {
+            micStream = await navigator.mediaDevices.getUserMedia({
+                audio: {
+                    channelCount: 1,
+                    echoCancellation: true,
+                    noiseSuppression: true,
+                    autoGainControl: true
+                }
+            });
+            addMessage("✅ Microfon pornit!", "system");
+        } catch (e) {
+            setStatus("❌ Nu am acces la microfon!", "error");
+            addMessage("❌ Eroare microfon: " + e.message + " — Permite accesul la microfon în Chrome și încearcă din nou.", "error");
+            callBtn.disabled = false;
+            return;
+        }
+
+        // WebSocket la backend
+        const wsUrl = `ws://${window.location.host}/ws`;
+        ws = new WebSocket(wsUrl);
+
+        ws.onopen = () => {
+            setStatus("✅ Ana e conectată - Vorbește!", "ok");
+            callBtn.disabled = false;
+            callBtn.className = 'call-button stop';
+            callBtn.textContent = '📵';
+            callLabel.textContent = 'Apasă pentru a încheia';
+            volumeBar.classList.add('active');
+            isActive = true;
+            setupMicrophone();
+        };
+
+        ws.onmessage = (event) => {
+            const data = JSON.parse(event.data);
+
+            if (data.type === 'audio') {
+                playAudio(data.audio);
+            } else if (data.type === 'transcript_ana') {
+                anaTextBuffer += data.text;
+            } else if (data.type === 'response.done' || data.type === 'response.audio_transcript.done') {
+                if (anaTextBuffer.trim()) {
+                    addMessage(anaTextBuffer.trim(), 'ana');
+                    anaTextBuffer = "";
+                }
+            } else if (data.type === 'transcript_client') {
+                if (data.text.trim()) {
+                    addMessage(data.text.trim(), 'client');
+                }
+            } else if (data.type === 'status') {
+                addMessage(data.message, 'system');
+            } else if (data.type === 'error') {
+                addMessage("⚠️ " + data.message, 'error');
+                setStatus("❌ Eroare: " + data.message, "error");
+            }
+        };
+
+        ws.onclose = () => {
+            if (isActive) {
+                setStatus("🔴 Conexiune închisă", "error");
+                addMessage("Conexiunea s-a închis.", "system");
+                cleanupCall();
+            }
+        };
+
+        ws.onerror = () => {
+            setStatus("❌ Eroare conexiune WebSocket", "error");
+            addMessage("Nu mă pot conecta la backend. Verifică că backend-ul rulează.", "error");
+            cleanupCall();
+        };
+    }
+
+    function setupMicrophone() {
+        // Folosim sampleRate-ul nativ al browser-ului (compatibil Android)
+        audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        audioCtx.resume(); // necesar pe Android după interacțiune utilizator
+
+        const nativeSampleRate = audioCtx.sampleRate;
+        addMessage(`🎙️ Microfon activ (${nativeSampleRate}Hz)`, "system");
+
+        const source = audioCtx.createMediaStreamSource(micStream);
+        micProcessor = audioCtx.createScriptProcessor(2048, 1, 1);
+
+        micProcessor.onaudioprocess = (e) => {
+            if (!isActive || !ws || ws.readyState !== WebSocket.OPEN) return;
+
+            const inputData = e.inputBuffer.getChannelData(0);
+
+            // Calculăm volumul pentru vizualizare
+            let sum = 0;
+            for (let i = 0; i < inputData.length; i++) sum += inputData[i] * inputData[i];
+            const volume = Math.sqrt(sum / inputData.length);
+            volumeFill.style.width = Math.min(volume * 500, 100) + '%';
+
+            // Resample la 24000Hz dacă e necesar
+            let samples = inputData;
+            if (nativeSampleRate !== 24000) {
+                const ratio = nativeSampleRate / 24000;
+                const newLen = Math.round(inputData.length / ratio);
+                samples = new Float32Array(newLen);
+                for (let i = 0; i < newLen; i++) {
+                    samples[i] = inputData[Math.min(Math.round(i * ratio), inputData.length - 1)];
+                }
+            }
+
+            // Convertim float32 la int16 (PCM16)
+            const pcm16 = new Int16Array(samples.length);
+            for (let i = 0; i < samples.length; i++) {
+                pcm16[i] = Math.max(-32768, Math.min(32767, samples[i] * 32768));
+            }
+
+            // Convertim la base64 și trimitem
+            const uint8 = new Uint8Array(pcm16.buffer);
+            let binary = '';
+            for (let i = 0; i < uint8.length; i++) binary += String.fromCharCode(uint8[i]);
+            const b64 = btoa(binary);
+
+            ws.send(JSON.stringify({ type: 'audio', audio: b64 }));
+        };
+
+        source.connect(micProcessor);
+        micProcessor.connect(audioCtx.destination);
+        addMessage("🗣️ Vorbește - Ana te ascultă!", "system");
+    }
+
+    // Coada pentru redarea audio secvențial
+    let audioQueue = [];
+    let isPlaying = false;
+
+    async function playAudio(base64Audio) {
+        audioQueue.push(base64Audio);
+        if (!isPlaying) processAudioQueue();
+    }
+
+    async function processAudioQueue() {
+        if (audioQueue.length === 0) { isPlaying = false; return; }
+        isPlaying = true;
+
+        const b64 = audioQueue.shift();
+        try {
+            const binary = atob(b64);
+            const bytes = new Uint8Array(binary.length);
+            for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+
+            const int16 = new Int16Array(bytes.buffer);
+            const float32 = new Float32Array(int16.length);
+            for (let i = 0; i < int16.length; i++) float32[i] = int16[i] / 32768.0;
+
+            const ctx = audioCtx || new AudioContext({ sampleRate: 24000 });
+            const buffer = ctx.createBuffer(1, float32.length, 24000);
+            buffer.getChannelData(0).set(float32);
+
+            const source = ctx.createBufferSource();
+            source.buffer = buffer;
+            source.connect(ctx.destination);
+            source.onended = processAudioQueue;
+            source.start();
+        } catch (e) {
+            processAudioQueue();
+        }
+    }
+
+    function stopCall() {
+        addMessage("Conversație încheiată.", "system");
+        cleanupCall();
+        setStatus("🔴 Apel închis", "error");
+    }
+
+    function cleanupCall() {
+        isActive = false;
+
+        if (micProcessor) { micProcessor.disconnect(); micProcessor = null; }
+        if (audioCtx) { audioCtx.close(); audioCtx = null; }
+        if (micStream) { micStream.getTracks().forEach(t => t.stop()); micStream = null; }
+        if (ws) { ws.close(); ws = null; }
+
+        callBtn.className = 'call-button start';
+        callBtn.textContent = '📞';
+        callBtn.disabled = false;
+        callLabel.textContent = 'Apasă pentru a vorbi cu Ana';
+        volumeBar.classList.remove('active');
+        volumeFill.style.width = '0%';
+        anaTextBuffer = "";
+        audioQueue = [];
+    }
+
+    // Verificăm că suntem pe HTTPS sau localhost (necesar pentru microfon)
+    window.onload = () => {
+        const isSecure = location.protocol === 'https:' || location.hostname === 'localhost' || location.hostname === '127.0.0.1';
+        if (!isSecure) {
+            setStatus("⚠️ Funcționează doar pe WiFi local (HTTP ok)", "connecting");
+        } else {
+            setStatus("🟢 Gata! Apasă pentru a vorbi cu Ana", "ok");
+        }
+    };
+</script>
+
+</body>
+</html>
