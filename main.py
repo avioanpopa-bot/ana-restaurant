@@ -134,9 +134,9 @@ async def websocket_bridge(client_ws: WebSocket):
                     },
                     "turn_detection": {
                         "type": "server_vad",
-                        "threshold": 0.6,
-                        "prefix_padding_ms": 200,
-                        "silence_duration_ms": 500
+                        "threshold": 0.3,
+                        "prefix_padding_ms": 300,
+                        "silence_duration_ms": 1000
                     },
                     "temperature": 0.9
                 }
